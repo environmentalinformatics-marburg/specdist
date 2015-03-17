@@ -1,3 +1,5 @@
+# Script for analysing species distributions based on GBIF data dump
+
 # General settings -------------------------------------------------------------
 inpath <- "D:/active/juergen/"
 
