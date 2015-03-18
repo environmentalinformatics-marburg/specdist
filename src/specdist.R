@@ -29,6 +29,7 @@ src <- list.files(modulepath, full.name = TRUE)
 src <- src[-grep("src/specdist.R", src)]
 sapply(src, function(x){source(x)})
 
+library(fossil)
 library(maps)
 library(maptools)
 library(geosphere)
@@ -53,18 +54,21 @@ if(preprocess){
   
   getBioclim(paste0(datapath_climate, "bioclim.txt"))
 } else {
-  load(paste0(datapath_processed, "df_clean.Rdata"))
+  #   load(paste0(datapath_processed, "df_clean.Rdata"))
+  #   save(play_points, file = paste0(datapath_processed, "playground.Rdata"))
+  load(paste0(datapath_processed, "playground.Rdata"))
 }
 
 
 # Playground -------------------------------------------------------------------
 
 # Load country boundaries
-cntr <- readOGR(paste0(datapath_world, "wb.shp"), 
-                       layer = "wb")
+cntr <- readOGR(paste0(datapath_world, "world_boundaries.shp"), 
+                       layer = "world_boundaries")
+cntr <- spTransform(cntr, CRS("+proj=moll +lon_0=0"))
 
 # Define projection of gbif observations
-prj <- proj4string(cntr)
+prj <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 coords_id <- c(grep("Lon", colnames(df)), grep("Lat", colnames(df)))
 
 # Subset gbif for a certain species and convert to spatial points data frame
@@ -76,15 +80,14 @@ play_points <- SpatialPointsDataFrame(play[, coords_id],
                                       play[, -coords_id],
                                       proj4string = CRS(prj))
 
+play_points <- spTransform(play_points, CRS("+proj=moll +lon_0=0"))
+
 # Compute some parameters (convex hul, area, intersect with countries)
-envelope <- gConvexHull(play_points)
+envelope <- gConvexHull(play_points, byid = FALSE)
 intersect <- gIntersection(cntr, envelope, byid = TRUE)
 
-envelope_mp <- dividePolygon(envelope)
-envelope_area <- sum(areaPolygon(envelope_mp)) / 1000**2
-perimr <- sum(perimeter(envelope_mp)) / 1000
-
-intersect_area <- sum(areaPolygon(intersect)) / 1000**2
+envelope_area <- gArea(envelope)
+intersect_area <- gArea(intersect)
 
 metrics <- data.frame(ENVELOPE_AREA = envelope_area,
                       LAND_AREA = intersect_area,
@@ -93,25 +96,12 @@ metrics <- data.frame(ENVELOPE_AREA = envelope_area,
                       SEA_ENVELOPE_RATIO = (envelope_area - intersect_area) / 
                         envelope_area,
                       LAND_SEA_RATIO = intersect_area / 
-                        (envelope_area - intersect_area))
+                        (envelope_area - intersect_area),
+                      ENVELOPE_EARTH_RATIO = envelope_area / (4 * pi * 6371**2))
 
 # Plot some stuff
 plot(cntr)
 plot(play_points, col = "darkgreen", add = TRUE)
 plot(envelope, border = "green", add = TRUE)
-plot(envelope_mp, border = "darkgreen", add = TRUE)
 plot(intersect, border = "blue", add = TRUE)
-plot(testenv, border = "green", add = TRUE)
 
-
-envelope_area_non_mp <- sum(areaPolygon(envelope)) / 1000**2
-metrics_non_mp <- data.frame(envelope_area_non_mp = envelope_area_non_mp,
-                             LAND_AREA = intersect_area,
-                             SEA_AREA = envelope_area_non_mp - intersect_area,
-                             LAND_ENVELOPE_RATIO = intersect_area / 
-                               envelope_area_non_mp,
-                             SEA_ENVELOPE_RATIO = (envelope_area_non_mp - 
-                                                     intersect_area) / 
-                               envelope_area_non_mp,
-                             LAND_SEA_RATIO = intersect_area / 
-                               (envelope_area_non_mp - intersect_area))
