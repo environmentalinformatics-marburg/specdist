@@ -1,0 +1,19 @@
+#' Calculates sub areals
+#' 
+#' Calculates buffers around individual observations to create sub areals for 
+#' the individual 
+#' 
+#' @param points a SpatialPointsDataFrame in a metric coordinate system
+#' 
+#' @return Spatial polygon containing the sub areals
+#' 
+#' @details The areals are based on multiple buffer computations to ensure
+#' that the required vector length is still allocatable.
+#' 
+calcSubAreals <- function(points){
+  buffer_mw <- gBuffer(play_points_mw, width = 1000)
+  buffer_mw_2 <- gBuffer(buffer_mw, width = 10000)
+  buffer_mw_3 <- gBuffer(buffer_mw_2, width = 100000)
+  buffer_mw_4 <- gBuffer(buffer_mw_3, width = 1000000)
+  buffer_mw_union <- gUnaryUnion(buffer_mw_4)
+}

@@ -82,7 +82,6 @@ if(preprocess){
 cntr <- readOGR(paste0(datapath_world, "world_boundaries.shp"), 
                 layer = "world_boundaries")
 
-
 str(play_points)
 plot(grid[[1]])
 plot(cntr, border = "black", add = TRUE)
@@ -138,4 +137,20 @@ plot(cntr)
 plot(play_points, col = "darkgreen", add = TRUE)
 plot(envelope, border = "green", add = TRUE)
 plot(intersect, border = "blue", add = TRUE)
+
+
+# V2 
+cntr_mw <- spTransform(cntr, CRS("+proj=moll +lon_0=0"))
+play_points_mw <- spTransform(play_points, CRS("+proj=moll +lon_0=0"))
+
+subareals <- calcSubAreals(play_points_mw)
+
+plot(cntr_mw)
+plot(play_points_mw, col = "darkgreen", add = TRUE)
+plot(subareals, border = "red", add = TRUE)
+plot(subareals@polygons[[1]])
+
+
+
+gArea(subareals)/1000000 / (4*pi*6371**2)
 
