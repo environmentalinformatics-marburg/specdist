@@ -29,7 +29,7 @@ src <- list.files(modulepath, full.name = TRUE)
 src <- src[-grep("src/specdist.R", src)]
 sapply(src, function(x){source(x)})
 
-library(fossil)
+
 library(maps)
 library(maptools)
 library(geosphere)
@@ -51,16 +51,19 @@ if(preprocess){
   df$decimalLatitude <- NULL
   df$decimalLongitude <- NULL
   save(df, file = paste0(datapath_processed, "df_clean.Rdata"))
-  
   getBioclim(paste0(datapath_climate, "bioclim.txt"))
 } else {
   #   load(paste0(datapath_processed, "df_clean.Rdata"))
   #   save(play_points, file = paste0(datapath_processed, "playground.Rdata"))
   load(paste0(datapath_processed, "playground.Rdata"))
+  bioclim <- loadBioclim()
+  grid_area <- raster(paste0(datapath_world, "grid_area.tif"))
 }
 
 
 # Playground -------------------------------------------------------------------
+# Load bioclim data
+
 
 # Load country boundaries
 cntr <- readOGR(paste0(datapath_world, "world_boundaries.shp"), 
