@@ -55,15 +55,46 @@ if(preprocess){
 } else {
   #   load(paste0(datapath_processed, "df_clean.Rdata"))
   #   save(play_points, file = paste0(datapath_processed, "playground.Rdata"))
+  #   bioclim <- loadBioclim()
   load(paste0(datapath_processed, "playground.Rdata"))
-  bioclim <- loadBioclim()
-  grid_area <- raster(paste0(datapath_world, "grid_area.tif"))
+  grid <- stack(paste0(datapath_world, "grid_area.tif"),
+                paste0(datapath_world, "grid_lat.tif"), 
+                paste0(datapath_world, "grid_lon.tif"))
 }
 
 
 # Playground -------------------------------------------------------------------
-# Load bioclim data
 
+# Define projection of gbif observations
+# prj <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+# coords_id <- c(grep("Lon", colnames(df)), grep("Lat", colnames(df)))
+
+# Subset gbif for a certain species and convert to spatial points data frame
+# play <- df[df$speciesKey == "2650774", ]
+# play <- play[complete.cases(play[, coords_id]), ]
+# summary(play[, coords_id])
+# 
+# play_points <- SpatialPointsDataFrame(play[, coords_id],
+#                                       play[, -coords_id],
+#                                       proj4string = CRS(prj))
+
+# Load country boundaries
+cntr <- readOGR(paste0(datapath_world, "world_boundaries.shp"), 
+                layer = "world_boundaries")
+
+
+str(play_points)
+plot(grid[[1]])
+plot(cntr, border = "black", add = TRUE)
+plot(play_points, col = "blue", add = TRUE)
+
+# Extract grid values
+play_points_grid <- extract(grid, play_points, cellnumbers = TRUE)
+play_points_grid <- aggregate(play_points_grid, 
+                              by = list(play_points_grid[, 1]), FUN = "mean")
+distance <- calcPointDist(play_points_grid)
+
+6731*2*pi/(360*60/10)
 
 # Load country boundaries
 cntr <- readOGR(paste0(datapath_world, "world_boundaries.shp"), 
