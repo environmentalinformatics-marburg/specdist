@@ -1,10 +1,22 @@
+rm(list = ls(all = T))
 # Script for analysing species distributions based on GBIF data dump
-
+#
+# The scripts analyse GBIF data along with environmental information.
+# 
+# Version: 0.0.0.9006
+#
+# Authors: Jürgen Kluge, Hanna Meyer, Thomas Nauss
+# 
+# License: GPL-3
+# 
+# Please send any comments, suggestions, criticism, or (for our sake) bug
+# reports to admin@environmentalinformatics-marburg.de
+# 
 # General settings -------------------------------------------------------------
+
 inpath <- "D:/active/juergen/"
 
 preprocess <- FALSE
-clean <- FALSE
 
 modulepath <- paste0(inpath, "scripts/specdist/src/")
 datapath <- paste0(inpath, "data/")
@@ -26,28 +38,20 @@ library(rgeos)
 library(sp)
 
 
-# Preprocessing of GBIF data ---------------------------------------------------
+# Preprocessing of GBIF and other data -----------------------------------------
 if(preprocess){
   infile <- paste0(datapath_org, "gbif_PTERIDOPHYTA.txt")
   readGBIF(infile, datapath_processed)
-} else {
+
   load(paste0(datapath_processed, "df.Rdata"))
-}
-
-# Get Bioclim data -------------------------------------------------------------
-if(preprocess){
-  getBioclim(paste0(datapath_climate, "bioclim.txt"))
-}
-
-
-# Clean up gbif data -----------------------------------------------------------
-if(clean){
   df <- df[-1,]
   df$Lat <- as.numeric(as.character(df$decimalLatitude))
   df$Lon <- as.numeric(as.character(df$decimalLongitude))
   df$decimalLatitude <- NULL
   df$decimalLongitude <- NULL
   save(df, file = paste0(datapath_processed, "df_clean.Rdata"))
+  
+  getBioclim(paste0(datapath_climate, "bioclim.txt"))
 } else {
   load(paste0(datapath_processed, "df_clean.Rdata"))
 }
@@ -55,36 +59,9 @@ if(clean){
 
 # Playground -------------------------------------------------------------------
 
-# Country boundaries
-
-# Testing some cases since the geospherical area computation does not fit estimates
+# Load country boundaries
 cntr <- readOGR(paste0(datapath_world, "wb.shp"), 
                        layer = "wb")
-
-afrika <- readOGR(paste0(datapath_world, "afrika.shp"), 
-                  layer = "afrika")
-a <- areaPolygon(afrika)
-sum(a/1000000)
-
-sa <- readOGR(paste0(datapath_world, "sueamerika.shp"), 
-                  layer = "sueamerika")
-saa <- areaPolygon(sa)
-sum(saa/1000000)
-
-both <- readOGR(paste0(datapath_world, "both.shp"), 
-              layer = "both")
-botha <- areaPolygon(both)
-sum(botha/1000000)
-
-testenv <- readOGR(paste0(datapath_world, "testenv.shp"), 
-                layer = "testenv")
-testenva <- areaPolygon(testenv)
-sum(testenva/1000000)
-
-
-sum(botha/1000000) / sum(testenva/1000000)
-
-
 
 # Define projection of gbif observations
 prj <- proj4string(cntr)
@@ -99,26 +76,42 @@ play_points <- SpatialPointsDataFrame(play[, coords_id],
                                       play[, -coords_id],
                                       proj4string = CRS(prj))
 
-
 # Compute some parameters (convex hul, area, intersect with countries)
-convh <- gConvexHull(play_points)
-area <- areaPolygon(convh) / 1000000
+envelope <- gConvexHull(play_points)
+intersect <- gIntersection(cntr, envelope, byid = TRUE)
 
-intersect <- gIntersection(cntr, convh, byid = TRUE)
-intersect_areas <- areaPolygon(intersect) / 1000000
+envelope_mp <- dividePolygon(envelope)
+envelope_area <- sum(areaPolygon(envelope_mp)) / 1000**2
+perimr <- sum(perimeter(envelope_mp)) / 1000
 
-metrics <- data.frame(ENVELOPE_AREA = area,
-                      LAND_AREA = sum(intersect_areas),
-                      SEA_AREA = area - sum(intersect_areas),
-                      LAND_ENVELOPE_RATIO = sum(intersect_areas) / area,
-                      SEA_ENVELOPE_RATIO = (area - sum(intersect_areas)) / area,
-                      LAND_SEA_RATIO = sum(intersect_areas) / 
-                        (area - sum(intersect_areas)))
+intersect_area <- sum(areaPolygon(intersect)) / 1000**2
+
+metrics <- data.frame(ENVELOPE_AREA = envelope_area,
+                      LAND_AREA = intersect_area,
+                      SEA_AREA = envelope_area - intersect_area,
+                      LAND_ENVELOPE_RATIO = intersect_area / envelope_area,
+                      SEA_ENVELOPE_RATIO = (envelope_area - intersect_area) / 
+                        envelope_area,
+                      LAND_SEA_RATIO = intersect_area / 
+                        (envelope_area - intersect_area))
 
 # Plot some stuff
 plot(cntr)
 plot(play_points, col = "darkgreen", add = TRUE)
-plot(convh, border = "green", add = TRUE)
+plot(envelope, border = "green", add = TRUE)
+plot(envelope_mp, border = "darkgreen", add = TRUE)
 plot(intersect, border = "blue", add = TRUE)
 plot(testenv, border = "green", add = TRUE)
 
+
+envelope_area_non_mp <- sum(areaPolygon(envelope)) / 1000**2
+metrics_non_mp <- data.frame(envelope_area_non_mp = envelope_area_non_mp,
+                             LAND_AREA = intersect_area,
+                             SEA_AREA = envelope_area_non_mp - intersect_area,
+                             LAND_ENVELOPE_RATIO = intersect_area / 
+                               envelope_area_non_mp,
+                             SEA_ENVELOPE_RATIO = (envelope_area_non_mp - 
+                                                     intersect_area) / 
+                               envelope_area_non_mp,
+                             LAND_SEA_RATIO = intersect_area / 
+                               (envelope_area_non_mp - intersect_area))
