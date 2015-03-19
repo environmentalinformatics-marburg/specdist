@@ -1,18 +1,21 @@
 #' Calculates distance between points using distVincentyEllipsoid method
-#' @param x A matrix with (at least) 3 columns: Lon,Lat,ID
-#'  (names doesn't matter but order is important!)
-#'  @return A Table object containing the distances between teh points in meter
-
-calcPointDist <- function (x){
-  id_pos <- grep("cells", names(x))
-  lon_pos <- grep("lon", names(x))
-  lat_pos <- grep("lat", names(x))
-  dist <- table(x[ ,id_pos], x[ ,id_pos])
-  for (i in 1:(nrow(x)-1)){
-    for (k in i:nrow(x)){
+#' 
+#' @param x SpatialPointsDataFrame with a column ID
+#' 
+#' @return A Table object containing the distances between the points in meter
+#' 
+calcPointDist <- function (points){
+  points <- as.data.frame(points)
+  id_pos <- grep("ID", names(points))
+  lon_pos <- grep("x", names(points))
+  lat_pos <- grep("y", names(points))
+  dist <- table(points[ ,id_pos], points[ ,id_pos])
+  for (i in 1:(nrow(points)-1)){
+    for (k in i:nrow(points)){
       dist[i,k] <- geosphere::distVincentyEllipsoid(
-        x[i,lon_pos:lat_pos], x[k,lon_pos:lat_pos])
+        points[i,lon_pos:lat_pos], points[k,lon_pos:lat_pos])
     }
   }
   return (dist)
 }
+

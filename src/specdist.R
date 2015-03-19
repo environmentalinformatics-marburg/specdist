@@ -3,7 +3,7 @@ rm(list = ls(all = T))
 #
 # The scripts analyse GBIF data along with environmental information.
 # 
-# Version: 0.0.0.9006
+# Version: 0.0.0.9007
 #
 # Authors: Jürgen Kluge, Hanna Meyer, Thomas Nauss
 # 
@@ -57,9 +57,9 @@ if(preprocess){
   #   save(play_points, file = paste0(datapath_processed, "playground.Rdata"))
   #   bioclim <- loadBioclim()
   load(paste0(datapath_processed, "playground.Rdata"))
-  grid <- stack(paste0(datapath_world, "grid_area.tif"),
-                paste0(datapath_world, "grid_lat.tif"), 
-                paste0(datapath_world, "grid_lon.tif"))
+#   grid <- stack(paste0(datapath_world, "grid_area.tif"),
+#                 paste0(datapath_world, "grid_lat.tif"), 
+#                 paste0(datapath_world, "grid_lon.tif"))
 }
 
 
@@ -93,7 +93,6 @@ play_points_grid <- aggregate(play_points_grid,
                               by = list(play_points_grid[, 1]), FUN = "mean")
 distance <- calcPointDist(play_points_grid)
 
-6731*2*pi/(360*60/10)
 
 # Load country boundaries
 cntr <- readOGR(paste0(datapath_world, "world_boundaries.shp"), 
@@ -140,17 +139,27 @@ plot(intersect, border = "blue", add = TRUE)
 
 
 # V2 
-cntr_mw <- spTransform(cntr, CRS("+proj=moll +lon_0=0"))
-play_points_mw <- spTransform(play_points, CRS("+proj=moll +lon_0=0"))
+cntr <- readOGR(paste0(datapath_world, "world_boundaries.shp"), 
+                layer = "world_boundaries")
+cntr_mw <- spTransform(cntr, CRS("+init=ESRI:54009"))
 
-subareals <- calcSubAreals(play_points_mw)
+play_points_mw <- spTransform(play_points, CRS("+init=ESRI:54009"))
+
+# Compute gbif metrics
+gbif_metrics <- calcGBIFMetrics(play_points_mw)
+# subareals <- calcPointSubAreals(play_points_mw)
+# subareas <- calcPolygonAreaByID(subareals$buffer_mw_union)
+# area <- calcPolygonArea(subareals$buffer_mw_union)
+# centroids <- calcPolygonCentroids(subareals$buffer_mw_union)
+# centroids_latlon <- spTransform(centroids, CRS(proj4string(cntr)))
+# centroids_dist <- calcPointDist(centroids_latlon[centroids_latlon$HOLE == 0,])
+
+
 
 plot(cntr_mw)
 plot(play_points_mw, col = "darkgreen", add = TRUE)
-plot(subareals, border = "red", add = TRUE)
-plot(subareals@polygons[[1]])
+plot(gbif_metrics$data$subareals$buffer_mw_union, border = "red", add = TRUE)
+plot(gbif_metrics$data$centroids[gbif_metrics$data$centroids$HOLE==0,], 
+     col = "blue", cex = 4, lwd = 2, add = TRUE)
 
-
-
-gArea(subareals)/1000000 / (4*pi*6371**2)
 
