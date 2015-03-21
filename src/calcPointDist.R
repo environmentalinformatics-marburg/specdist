@@ -14,6 +14,7 @@ calcPointDist <- function (points){
     for (k in i:nrow(points)){
       dist[i,k] <- geosphere::distVincentyEllipsoid(
         points[i,lon_pos:lat_pos], points[k,lon_pos:lat_pos])
+      dist[k,i] <- dist[i,k]
     }
   }
   return (dist)

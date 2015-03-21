@@ -15,9 +15,10 @@ calcPointSubAreals <- function(points){
   buffer_mw <- gBuffer(play_points_mw, width = 1000)
   buffer_mw_2 <- gBuffer(buffer_mw, width = 10000)
   buffer_mw_3 <- gBuffer(buffer_mw_2, width = 100000)
-  buffer_mw_4 <- gBuffer(buffer_mw_3, width = 1000000)
+  buffer_mw_4 <- gBuffer(buffer_mw_3, width = 100000)
   buffer_mw_union <- gUnaryUnion(buffer_mw_4)
   return(list(buffer_mw = buffer_mw, buffer_mw_2 = buffer_mw_2,
               buffer_mw_3 = buffer_mw_3, buffer_mw_4 = buffer_mw_4,
               buffer_mw_union = buffer_mw_union))
 }
+

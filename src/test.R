@@ -1,56 +1,110 @@
-# Test for polygon area
-envelope_mp <- dividePolygon(envelope)
+test <- read.table(paste0(datapath_org, "gbif_chunk_01.txt"))
+cnames <- unlist(c(test[1,]))
 
-j <- envelope@polygons[[1]]@Polygons[[1]]@coords
-k <- j[c(2:10, 1, 2),]
 
-l <- SpatialPolygons(list(Polygons(list(Polygon(k)), as.character("TEST"))))
-proj4string(l) <- proj4string(envelope)
+test <- read.table(paste0(datapath_org, "gbif_chunk_03.txt"))
+colnames(test) <- cnames
 
-m <- dividePolygon(l)
+cid <- c(1, 63, 70, 71, 72, 78, 79, 93, 100, 157, 164, 
+         173, 182, 210, 213, 214, 215, 216, 217, 218, 
+         219, 220)
 
-plot(cntr_mw)
-plot(l, add = TRUE)
-plot(envelope_mp, border = "red", add = TRUE)
-plot(m, border = "green", add = TRUE)
+head(test[is.na(test$countryCode), cid])
 
-envelope_mp
-m
+which(is.na(test$countryCode))[1]
+33292
+which(test$countryCode == "NA")[1]
 
-testarea <- function(testpoly){
-  area <- lapply(seq(length(testpoly)), function(x){
-    act_coords <- testpoly@polygons[[x]]@Polygons[[1]]@coords
-    act_poly <- SpatialPolygons(list(Polygons(list(Polygon(act_coords)), as.character(x))))
-    proj4string(act_poly) <- proj4string(testpoly)
-    gArea(act_poly)
+df <- test
+
+
+
+
+
+
+# Preprocessing of GBIF df ---------------------------------------------------
+loadGBIF <- function(infile, datapath_processed, cntr){
+  # Read GBIF dataset
+  datapath_org <- paste0(dirname(infile), "/")
+  f <- file(infile, "r")
+  df <- data.frame()
+  i <- 0
+  while (length(l <- readLines(f, n = 100000, warn = FALSE)) > 0) {
+    i <- i+1
+    print(i)
+    df_act <- do.call("rbind", lapply(l, function(x){
+      act <- unlist(strsplit(x, "\t"))
+      if(length(act) < 224){
+        act[length(act):224] <- NA
+      }
+      act[grep(glob2rx(""), act)] <- NA
+      return(act)
+    }))
+    write.table(df_act, paste0(datapath_org, 
+                               sprintf("gbif_chunk_%02d", i), ".txt"))
+    
+    df <- rbind(df, df_act[, c(1, 63, 70, 71, 72, 78, 79, 93, 100, 157, 164, 
+                               173, 182, 210, 213, 214, 215, 216, 217, 218, 
+                               219, 220)])
+  }
+  close(f)
+  colnames(df) <- unlist(c(df[1,]))
+  save(df, file = paste0(datapath_processed, "df.Rdata"))
+  
+  # Clean GBIF dataset
+  df <- df[-1,]
+  df$Lat <- as.numeric(as.character(df$decimalLatitude))
+  df$Lon <- as.numeric(as.character(df$decimalLongitude))
+  df$decimalLatitude <- NULL
+  df$decimalLongitude <- NULL
+  df$fips104 <- countrycode(df$countryCode, "iso2c", "fips104")
+  
+  #   df_test <- df[df$fips104 == "WA",]
+  #   df_test <- rbind(df_test, df[df$fips104 == "NZ",])
+  #   save(df_test, file = paste0(datapath_processed, "df_test.Rdata"))
+  
+  load(paste0(datapath_processed, "df_test.Rdata"))
+  
+  cntr_centroids <- calcPolygonCentroids(cntr)
+  df$Centroid <- FALSE
+  lat_id <- grep("Lat", colnames(df))
+  lon_id <- grep("Lon", colnames(df))
+  cent_id <- grep("Centroid", colnames(df))
+
+  
+  df_coords_avail <- df[!is.na(df$Lat),]
+  save(df_coords_avail, file = paste0(datapath_processed, "df_coords_avail.Rdata"))
+  
+  df_coords_no_geo <- df[is.na(df$Lat) & is.na(df$countryCode), ]
+  save(df_coords_no_geo, file = paste0(datapath_processed, "df_coords_no_geo.Rdata"))
+  
+  df_coords_no_lat <- df[is.na(df$Lat) & !is.na(df$fips104), ]
+  save(df_coords_no_lat, file = paste0(datapath_processed, "df_coords_no_lat.Rdata"))
+  
+  str(df_coords_no_lat)
+  
+  
+  replace_values <- lapply(seq(nrow(df_coords_no_lat)), function(x){
+    print(x)
+    if(any(rownames(cntr_centroids@coords) == df_coords_no_lat$fips104[x])){
+      data.frame(Lat = cntr_centroids@coords[rownames(cntr_centroids@coords) == 
+                                               df_coords_no_lat$fips104[x], 2],
+                 Lon = cntr_centroids@coords[rownames(cntr_centroids@coords) == 
+                                               df_coords_no_lat$fips104[x], 1],
+                 Centroid = TRUE)
+    }
   })
-}
-
-m_area <- testarea(m)
-sum(unlist(m_area))
-
-envelope_mp_area <- testarea(envelope_mp)
-sum(unlist(envelope_mp_area))
-
-
-# Test for envelope
-testcoords <- data.frame(LON = c(-179.0, 179.0, 178.0),
-                         LAT = c(5, -5, 0))
-
-testcoords <- data.frame(LON = c(180.0, 178.0, 177.0),
-                         LAT = c(5, -5, 0))
-
-testpoints <- SpatialPoints(testcoords)
-proj4string(testpoints) <- prj
-gConvexHull(testpoints)@polygons[[1]]@Polygons[[1]]@coords
-
-testpoints_mw <- spTransform(testpoints, CRS("+proj=moll +lon_0=0"))
-test_envelope <- gConvexHull(testpoints_mw, byid = FALSE)
-plot(cntr)
-plot(testpoints_mw, col = "green", add = TRUE)
-plot(test_envelope, border = "red", add = TRUE)
-gArea(test_envelope)/(2*pi*6371000**2)
-
-
-testpoints_df <- SpatialPointsDataFrame(testpoints, data = data.frame(c(1,2,3)))
-writeOGR(testpoints_df, paste0(datapath_world, "dreipunkt.shp"), "dreipunkt", driver="ESRI Shapefile")
+  replace_values <- do.call("rbind", replace_values)
+  
+  for(i in seq(nrow(df_coords_no_lat))){
+    print(i)
+    if(any(rownames(cntr_centroids@coords) == df_coords_no_lat$fips104[i])){
+      df_coords_no_lat[i, c(lat_id, lon_id, cent_id)] <-   
+        c(cntr_centroids@coords[rownames(cntr_centroids@coords) == df_coords_no_lat$fips104[i], 2],
+          cntr_centroids@coords[rownames(cntr_centroids@coords) == df_coords_no_lat$fips104[i], 1],
+          TRUE)
+      
+    }
+  }
+  
+  
